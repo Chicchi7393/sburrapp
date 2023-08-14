@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Sburrapp</string>
+    <string name="default_notification_channel_id">FRATM_ANNUNCIO_SBORRA_INCOMING</string>
+</resources>
