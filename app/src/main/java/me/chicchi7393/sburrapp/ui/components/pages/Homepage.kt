@@ -133,7 +133,7 @@ fun Homepage(retrofit: HoSburratoHTTP) {
                     Text("Sborratore: $cummer", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(12.dp))
                     val at = SimpleDateFormat("dd-MM-yyyy' alle 'HH:mm:ss", Locale.ITALY).format(
-                        Date(context.intent.getStringExtra("at")?.toLong() ?: 0L)
+                        Date((context.intent.getStringExtra("at")?.toLong() ?: 0L)*1000)
                     )
                     Text("Quando? Il $at", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(12.dp))
