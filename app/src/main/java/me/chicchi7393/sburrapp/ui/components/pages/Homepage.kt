@@ -10,13 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -24,8 +21,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,28 +29,26 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.capitalize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.map
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.messaging.ktx.messaging
 import kotlinx.coroutines.launch
-import me.chicchi7393.sburrapp.callback.changeUsernameCallback
+import kotlinx.coroutines.tasks.await
+import me.chicchi7393.sburrapp.callback.changeFcmCallback
+import me.chicchi7393.sburrapp.callback.registerCallback
 import me.chicchi7393.sburrapp.callback.getFriendsCallback
 import me.chicchi7393.sburrapp.callback.sburratoCallback
-import me.chicchi7393.sburrapp.dataStore
 import me.chicchi7393.sburrapp.helpers.DatastoreHelper
 import me.chicchi7393.sburrapp.helpers.HoSburratoHTTP
+import me.chicchi7393.sburrapp.helpers.Singleton
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -63,16 +56,17 @@ import kotlin.random.Random
 import kotlin.system.exitProcess
 
 @Composable
-fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
+fun Homepage(retrofit: HoSburratoHTTP) {
     val context = LocalContext.current
     val datastoreHelper = DatastoreHelper(context)
     val coroutineScope = rememberCoroutineScope()
-    val username = datastoreHelper.getUsername()
+    val deviceIdFlow = datastoreHelper.getDeviceId()
     val showModal = remember {
         mutableStateOf(false)
     }
 
     var usernameInput by rememberSaveable { mutableStateOf("") }
+    var passwordInput by rememberSaveable { mutableStateOf("") }
 
     var consistencyInput by rememberSaveable { mutableStateOf("") }
     var honourInput by rememberSaveable { mutableStateOf("") }
@@ -85,30 +79,36 @@ fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
         mutableStateOf(false)
     }
 
+    var passwordError by remember {
+        mutableStateOf(false)
+    }
+
     var toShowDetail by remember {
         mutableStateOf(false)
     }
 
-    var ack by remember {
-        mutableStateOf(false)
+    var fcm: String? by remember {
+        mutableStateOf(null)
     }
 
-    LaunchedEffect(key1 = "usernameCollect") {
+    LaunchedEffect(key1 = "deviceidCollect") {
         coroutineScope.launch {
-            username.collect {
+            deviceIdFlow.collect {
                 showModal.value = it == null
+                Singleton.deviceId = it
             }
+            fcm = Firebase.messaging.token.await()
         }
     }
 
-    if ((context as Activity).intent.getStringExtra("username") != null && !ack) {
+    if ((context as Activity).intent.getStringExtra("username") != null && !Singleton.ack) {
         toShowDetail = true
     }
 
     if (toShowDetail) {
         Dialog(onDismissRequest = {
             toShowDetail = false
-            ack = true
+            Singleton.ack = true
         }, properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn)) {
             Surface(
                 modifier = Modifier.wrapContentSize(),
@@ -153,7 +153,7 @@ fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
                     TextButton(
                         onClick = {
                             toShowDetail = false
-                            ack = true
+                            Singleton.ack = true
                                   },
                         modifier = Modifier.align(Alignment.End)
                     ) {
@@ -176,7 +176,7 @@ fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Benvenuto a Sburrapp! Prima di tutto, scegli un username\nL'username non deve contenere spazi e deve essere di almeno 4 caratteri",
+                        text = "Benvenuto a Sburrapp! Prima di tutto, registrati!\nL'username non deve contenere spazi e deve essere di almeno 4 caratteri, la password invece deve essere di almeno 8 caratteri",
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     TextField(
@@ -189,13 +189,31 @@ fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
                         isError = inputError
                     )
                     Spacer(modifier = Modifier.height(12.dp))
+                    TextField(
+                        value = passwordInput,
+                        onValueChange = {
+                            passwordInput = it
+                            inputError = false },
+                        label = { Text("Password") },
+                        placeholder = { Text("h0Sb0rr4to") },
+
+                        isError = passwordError,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     TextButton(
                         onClick = {
                             if (usernameInput.length < 4 || usernameInput.contains(" ")) {
                                 inputError = true
+                            } else if (passwordInput.length < 8 || passwordInput.contains(" ")) {
+                                passwordError = true
                             } else {
-                                retrofit.cambiaUsername(deviceId, usernameInput).enqueue(changeUsernameCallback(showModal, coroutineScope, datastoreHelper, usernameInput, context))
+                                retrofit.registra(usernameInput, passwordInput).enqueue(registerCallback(showModal, coroutineScope, datastoreHelper, context))
+                                if (fcm != null && Singleton.deviceId != null && Singleton.deviceId != "") {
+                                    retrofit.cambiaFcm(Singleton.deviceId!!, fcm!!).enqueue(changeFcmCallback(context))
+                                }
                             }
                         },
                         modifier = Modifier.align(Alignment.End)
@@ -207,7 +225,9 @@ fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
 
         }
     } else {
-        retrofit.getFriends(deviceId).enqueue(getFriendsCallback(context))
+        if (Singleton.deviceId != null && Singleton.deviceId != "") {
+            retrofit.getFriends(Singleton.deviceId!!).enqueue(getFriendsCallback(context))
+        }
     }
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -246,9 +266,12 @@ fun Homepage(retrofit: HoSburratoHTTP, deviceId: String) {
                 Button(onClick = {
                     consistencyError = consistencyInput == ""
                     whereError = whereInput == ""
-                    if (!consistencyError && !whereError) {
-                        retrofit.hoSburratoReq(deviceId, consistencyInput, honourInput, whereInput).enqueue(sburratoCallback(context))
+                    if (!consistencyError && !whereError && Singleton.deviceId != null && Singleton.deviceId != "") {
+                        retrofit.hoSburratoReq(Singleton.deviceId!!, consistencyInput, honourInput, whereInput).enqueue(sburratoCallback(context))
                     }
+                    consistencyInput = ""
+                    whereInput = ""
+                    honourInput = ""
                 }, modifier = Modifier) {
                     Text("Ho sburrato")
                 }

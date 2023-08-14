@@ -24,9 +24,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -35,9 +39,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import me.chicchi7393.sburrapp.callback.addFriendsCallback
 import me.chicchi7393.sburrapp.callback.deleteFriendsCallback
 import me.chicchi7393.sburrapp.callback.getFriendsCallback
+import me.chicchi7393.sburrapp.helpers.DatastoreHelper
 import me.chicchi7393.sburrapp.helpers.HoSburratoHTTP
 import me.chicchi7393.sburrapp.helpers.Singleton
 import me.chicchi7393.sburrapp.ui.theme.SburrappTheme
@@ -45,7 +51,7 @@ import java.security.MessageDigest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Friends(http: HoSburratoHTTP, deviceId: String, selectedItem: MutableState<Int>) {
+fun Friends(http: HoSburratoHTTP, selectedItem: MutableState<Int>) {
     val context = LocalContext.current
     val newFriendUser = remember {
         mutableStateOf("")
@@ -63,6 +69,22 @@ fun Friends(http: HoSburratoHTTP, deviceId: String, selectedItem: MutableState<I
         mutableStateOf("")
     }
 
+    val datastoreHelper = DatastoreHelper(context)
+    val deviceIdFlow = datastoreHelper.getDeviceId()
+
+    var deviceId: String? by remember {
+        mutableStateOf(null)
+    }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(key1 = "deviceidCollect") {
+        coroutineScope.launch {
+            deviceIdFlow.collect {
+                deviceId = it
+            }
+        }
+    }
+
     Column(Modifier.padding(10.dp)) {
         Text("Lista amici", style = MaterialTheme.typography.displayLarge.copy(
             fontWeight = FontWeight.SemiBold
@@ -76,9 +98,12 @@ fun Friends(http: HoSburratoHTTP, deviceId: String, selectedItem: MutableState<I
                     Text(it.username, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(vertical = 10.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         Icon(Icons.Default.Clear, "Elimina amico", Modifier.clickable {
-                            http.deleteFriend(deviceId, it.username).enqueue(
-                                deleteFriendsCallback(context, selectedItem))
-                            http.getFriends(deviceId).enqueue(getFriendsCallback(context))
+                            if (deviceId != null) {
+                                http.deleteFriend(deviceId!!, it.username).enqueue(
+                                    deleteFriendsCallback(context, selectedItem)
+                                )
+                                http.getFriends(deviceId!!).enqueue(getFriendsCallback(context))
+                            }
                         })
                     }
                 }
@@ -100,8 +125,17 @@ fun Friends(http: HoSburratoHTTP, deviceId: String, selectedItem: MutableState<I
                         if (newFriendUser.value.length < 4 || newFriendUser.value.contains(" ")) {
                             newFriendUserError.value = true
                         } else {
-                            http.addFriend(deviceId, newFriendUser.value).enqueue(addFriendsCallback(context, errorOpacity, errorText, selectedItem))
-                            http.getFriends(deviceId).enqueue(getFriendsCallback(context))
+                            if (deviceId != null) {
+                                http.addFriend(deviceId!!, newFriendUser.value).enqueue(
+                                    addFriendsCallback(
+                                        context,
+                                        errorOpacity,
+                                        errorText,
+                                        selectedItem
+                                    )
+                                )
+                                http.getFriends(deviceId!!).enqueue(getFriendsCallback(context))
+                            }
                         }
                     }) {
                         Icon(Icons.Default.Add, "aggiungi amico")
@@ -115,12 +149,17 @@ fun Friends(http: HoSburratoHTTP, deviceId: String, selectedItem: MutableState<I
                     )
                 }
                 Spacer(Modifier.height(16.dp))
-                val bytes = deviceId.toByteArray()
-                val md = MessageDigest.getInstance("SHA-256")
-                val digest = md.digest(bytes)
-                val hashed = digest.fold("") { str, it -> str + "%02x".format(it) }.take(15)
-                val friendCodeCalc = hashed.chunked(5).joinToString("-")
-                Text("Il tuo codice amico è $friendCodeCalc", style = MaterialTheme.typography.titleSmall)
+                if (deviceId != null) {
+                    val bytes = deviceId!!.toByteArray()
+                    val md = MessageDigest.getInstance("SHA-256")
+                    val digest = md.digest(bytes)
+                    val hashed = digest.fold("") { str, itHash -> str + "%02x".format(itHash) }.take(15)
+                    val friendCodeCalc = hashed.chunked(5).joinToString("-")
+                    Text(
+                        "Il tuo codice amico è $friendCodeCalc",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                }
             }
         }
     }

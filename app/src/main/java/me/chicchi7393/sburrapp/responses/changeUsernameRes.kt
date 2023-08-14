@@ -1,6 +1,7 @@
 package me.chicchi7393.sburrapp.responses
 
-data class ChangeUsernameRes(
+data class RegisterRes(
     val changed: Boolean,
-    val reason: String?
+    val reason: String?,
+    val deviceId: String?
 )
