@@ -27,7 +27,7 @@ class NotificheSbugmate: FirebaseMessagingService() {
 
         GlobalScope.launch {
             deviceIdFlow.collect {
-                if (it != null) {
+                if (it != null && it != "") {
                     retrofit.cambiaFcm(it, token).enqueue(changeFcmCallback(this@NotificheSbugmate))
                 }
             }

@@ -38,7 +38,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.messaging.ktx.messaging
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import me.chicchi7393.sburrapp.callback.changeFcmCallback
 import me.chicchi7393.sburrapp.callback.registerCallback
 import me.chicchi7393.sburrapp.callback.getFriendsCallback
 import me.chicchi7393.sburrapp.callback.sburratoCallback
@@ -89,6 +93,16 @@ fun Homepage(retrofit: HoSburratoHTTP) {
             deviceIdFlow.collect {
                 showModal.value = it == null
                 Singleton.deviceId = it
+            }
+        }
+    }
+
+    LaunchedEffect(key1 = "notiCollect") {
+        coroutineScope.launch {
+            deviceIdFlow.collect {
+                if (it != null && it != "") {
+                    retrofit.cambiaFcm(it, Firebase.messaging.token.await()).enqueue(changeFcmCallback(context))
+                }
             }
         }
     }
@@ -215,9 +229,7 @@ fun Homepage(retrofit: HoSburratoHTTP) {
 
         }
     } else {
-        if (Singleton.deviceId != null && Singleton.deviceId != "") {
-            retrofit.getFriends(Singleton.deviceId!!).enqueue(getFriendsCallback(context))
-        }
+        retrofit.getFriends(Singleton.deviceId!!).enqueue(getFriendsCallback(context))
     }
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
