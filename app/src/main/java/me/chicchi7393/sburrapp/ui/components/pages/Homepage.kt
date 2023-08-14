@@ -38,11 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
-import com.google.firebase.ktx.Firebase
-import com.google.firebase.messaging.ktx.messaging
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import me.chicchi7393.sburrapp.callback.changeFcmCallback
 import me.chicchi7393.sburrapp.callback.registerCallback
 import me.chicchi7393.sburrapp.callback.getFriendsCallback
 import me.chicchi7393.sburrapp.callback.sburratoCallback
@@ -87,9 +83,6 @@ fun Homepage(retrofit: HoSburratoHTTP) {
         mutableStateOf(false)
     }
 
-    var fcm: String? by remember {
-        mutableStateOf(null)
-    }
 
     LaunchedEffect(key1 = "deviceidCollect") {
         coroutineScope.launch {
@@ -97,7 +90,6 @@ fun Homepage(retrofit: HoSburratoHTTP) {
                 showModal.value = it == null
                 Singleton.deviceId = it
             }
-            fcm = Firebase.messaging.token.await()
         }
     }
 
@@ -210,10 +202,8 @@ fun Homepage(retrofit: HoSburratoHTTP) {
                             } else if (passwordInput.length < 8 || passwordInput.contains(" ")) {
                                 passwordError = true
                             } else {
-                                retrofit.registra(usernameInput, passwordInput).enqueue(registerCallback(showModal, coroutineScope, datastoreHelper, context))
-                                if (fcm != null && Singleton.deviceId != null && Singleton.deviceId != "") {
-                                    retrofit.cambiaFcm(Singleton.deviceId!!, fcm!!).enqueue(changeFcmCallback(context))
-                                }
+                                retrofit.registra(usernameInput, passwordInput).enqueue(registerCallback(showModal, coroutineScope, datastoreHelper, context, retrofit))
+
                             }
                         },
                         modifier = Modifier.align(Alignment.End)
