@@ -229,7 +229,7 @@ fun Homepage(retrofit: HoSburratoHTTP) {
 
         }
     } else {
-        retrofit.getFriends(Singleton.deviceId!!).enqueue(getFriendsCallback(context))
+        retrofit.getFriends(Singleton.deviceId ?: "").enqueue(getFriendsCallback(context))
     }
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
