@@ -1,6 +1,7 @@
 package me.chicchi7393.sburrapp.ui.components.pages
 
-import androidx.compose.ui.graphics.Color
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
 import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,11 +35,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat.getSystemService
 import kotlinx.coroutines.launch
+import me.chicchi7393.sburrapp.R
 import me.chicchi7393.sburrapp.callback.addFriendsCallback
 import me.chicchi7393.sburrapp.callback.deleteFriendsCallback
 import me.chicchi7393.sburrapp.callback.getFriendsCallback
@@ -49,7 +53,7 @@ import me.chicchi7393.sburrapp.helpers.Singleton
 import me.chicchi7393.sburrapp.ui.theme.SburrappTheme
 import java.security.MessageDigest
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun Friends(http: HoSburratoHTTP, selectedItem: MutableState<Int>) {
     val context = LocalContext.current
@@ -155,10 +159,19 @@ fun Friends(http: HoSburratoHTTP, selectedItem: MutableState<Int>) {
                     val digest = md.digest(bytes)
                     val hashed = digest.fold("") { str, itHash -> str + "%02x".format(itHash) }.take(15)
                     val friendCodeCalc = hashed.chunked(5).joinToString("-")
-                    Text(
-                        "Il tuo codice amico è $friendCodeCalc",
-                        style = MaterialTheme.typography.titleSmall
-                    )
+                    Row {
+                        Text(
+                            "Il tuo codice amico è $friendCodeCalc",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Icon(painterResource(R.drawable.content_copy), "Copia", modifier = Modifier.clickable {
+                                val clipboard = getSystemService(context, ClipboardManager::class.java)
+                                val clip = ClipData.newPlainText("friendCode", friendCodeCalc)
+                                clipboard?.setPrimaryClip(clip)
+                            })
+                        }
+                    }
                 }
             }
         }
