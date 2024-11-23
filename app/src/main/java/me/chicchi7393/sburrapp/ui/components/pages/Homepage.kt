@@ -115,7 +115,7 @@ fun Homepage(retrofit: HoSburratoHTTP) {
         Dialog(onDismissRequest = {
             toShowDetail = false
             Singleton.ack = true
-        }, properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn)) {
+        }) {
             Surface(
                 modifier = Modifier.wrapContentSize(),
                 shape = MaterialTheme.shapes.large,
